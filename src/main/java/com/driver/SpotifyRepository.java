@@ -1,3 +1,181 @@
+package com.driver;
+
+import java.util.*;
+
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class SpotifyRepository {
+    public HashMap<Artist, List<Album>> artistAlbumMap;
+    public HashMap<Album, List<Song>> albumSongMap;
+    public HashMap<Playlist, List<Song>> playlistSongMap;
+    public HashMap<Playlist, List<User>> playlistListenerMap;
+    public HashMap<User, Playlist> creatorPlaylistMap;
+    public HashMap<User, List<Playlist>> userPlaylistMap;
+    public HashMap<Song, List<User>> songLikeMap;
+
+    public List<User> users;
+    public List<Song> songs;
+    public List<Playlist> playlists;
+    public List<Album> albums;
+    public List<Artist> artists;
+
+    public SpotifyRepository(){
+        //To avoid hitting apis multiple times, initialize all the hashmaps here with some dummy data
+        artistAlbumMap = new HashMap<>();
+        albumSongMap = new HashMap<>();
+        playlistSongMap = new HashMap<>();
+        playlistListenerMap = new HashMap<>();
+        creatorPlaylistMap = new HashMap<>();
+        userPlaylistMap = new HashMap<>();
+        songLikeMap = new HashMap<>();
+
+        users = new ArrayList<>();
+        songs = new ArrayList<>();
+        playlists = new ArrayList<>();
+        albums = new ArrayList<>();
+        artists = new ArrayList<>();
+    }
+
+    public User createUser(String name, String mobile) {
+        User user = new User();
+        user.setName(name);
+        user.setMobile(mobile);
+        users.add(user);
+
+        return user;
+    }
+
+    public Artist createArtist(String name) {
+        Artist artist = new Artist();
+        artist.setName(name);
+        artist.setLikes(0);
+
+        artists.add(artist);
+        return artist;
+    }
+
+    public Album createAlbum(String title, String artistName) {
+        Artist artist1 = null;
+
+        for(Artist artist:artists){
+            if(artist.getName()==artistName){
+                artist1=artist;
+                break;
+            }
+        }
+        if(artist1==null){
+            artist1 = createArtist(artistName);
+
+            Album album = new Album();
+
+            album.setTitle(title);
+            album.setReleaseDate(new Date());
+
+            albums.add(album);
+
+            List<Album> l = new ArrayList<>();
+            l.add(album);
+            artistAlbumMap.put(artist1,l);
+
+            return album;
+        }else {
+            Album album = new Album();
+
+            album.setTitle(title);
+            album.setReleaseDate(new Date());
+
+            albums.add(album);
+
+            List<Album> l = artistAlbumMap.get(artist1);
+            if(l == null){
+                l = new ArrayList<>();
+            }
+            l.add(album);
+            artistAlbumMap.put(artist1,l);
+
+            return album;
+        }
+    }
+  
+  public Song createSong(String title, String albumName, int length) throws Exception{
+
+        Album album = null;
+        for(Album album1:albums){
+            if(album1.getTitle()==albumName){
+                album=album1;
+                break;
+            }
+        }
+        if(album==null)
+            throw new Exception("Album does not exist");
+        else {
+            Song song = new Song();
+            song.setTitle(title);
+            song.setLength(length);
+            song.setLikes(0);
+
+            songs.add(song);
+
+//            List<Song> l = albumSongMap.get(album);
+//            l.add(song);
+//            albumSongMap.put(album,l);
+
+            if(albumSongMap.containsKey(album)){
+                List<Song> l = albumSongMap.get(album);
+                l.add(song);
+                albumSongMap.put(album,l);
+            }else{
+                List<Song> songList = new ArrayList<>();
+                songList.add(song);
+                albumSongMap.put(album,songList);
+            }
+
+            return song;
+        }
+    }
+
+    public Playlist createPlaylistOnLength(String mobile, String title, int length) throws Exception {
+
+        //Create a playlist with given title and add all songs having the given length in the database to that playlist
+        //The creater of the playlist will be the given user and will also be the only listener at the time of playlist creation
+        //If the user does not exist, throw "User does not exist" exception
+
+        User user = null;
+        for(User user1:users){
+            if(user1.getMobile()==mobile){
+                user=user1;
+                break;
+            }
+        }
+        if(user==null)
+            throw new Exception("User does not exist");
+        else {
+            Playlist playlist = new Playlist();
+            playlist.setTitle(title);
+            playlists.add(playlist);
+
+            List<Song> l = new ArrayList<>();
+            for(Song song:songs){
+                if(song.getLength()==length){
+                    l.add(song);
+                }
+            }
+            playlistSongMap.put(playlist,l);
+
+            List<User> list = new ArrayList<>();
+            list.add(user);
+            playlistListenerMap.put(playlist,list);
+
+            creatorPlaylistMap.put(user,playlist);
+
+//            List<Playlist> userPlayList = userPlaylistMap.get(user);  //error possibility
+//            userPlayList.add(playlist);
+//            userPlaylistMap.put(user,userPlayList);
+
+            if(userPlaylistMap.containsKey(user)){
+                List<Playlist> userPlayList = userPlaylistMap.get(user);
+                userPlayList.add(playlist);
                 userPlaylistMap.put(user,userPlayList);
             }else{
                 List<Playlist> plays = new ArrayList<>();
@@ -56,8 +234,8 @@
             return playlist;
         }
     }
-
-    public Playlist findPlaylist(String mobile, String playlistTitle) throws Exception {
+  
+  public Playlist findPlaylist(String mobile, String playlistTitle) throws Exception {
 
         //Find the playlist with given title and add user as listener of that playlist and update user accordingly
         //If the user is creater or already a listener, do nothing
